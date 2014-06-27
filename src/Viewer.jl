@@ -1,24 +1,29 @@
 using Gtk.ShortNames, Gtk.GConstants
 using Winston
+import Color
 
-export viewer, ViewerWindow
+export viewer, ImageViewer
 
-type ViewerWindow <: Gtk.GtkWindow
+type ImageViewer <: Gtk.GtkWindow
   handle::Ptr{Gtk.GObject}
 end
 
-function ViewerWindow()
+const uifile = joinpath( dirname(Base.source_path()), "Viewer.ui" )
 
-  #println( joinpath( dirname(Base.source_path()), "Viewer.ui" ) )
+function ImageViewer()
+
+  println( uifile )
 
   c1 = @Canvas()
-  #builder = Builder(filename=joinpath( dirname(Base.source_path()), "Viewer.ui" ))
-  #builder = Builder(filename= "D:\\Users\\tknopp\\Dropbox\\julia\\MPI\\src\\Viewer.ui" )
-  builder = @Builder(filename= "/Users/knopp/Dropbox/julia/MPI/src/Viewer.ui" )
-  
+  builder = @Builder(filename=uifile)
 
   btnOpenFile = G_.object(builder, "btnOpenFile")
-  #btnAbs = G_.object(builder, "btnAbs")
+  cbDomain = G_.object(builder, "cbDomain")
+  
+  choices = ["Abs", "Phase", "Real", "Imag"]
+  for c in choices
+    push!(cbDomain, c)
+  end  
   
   scSlice = G_.object(builder, "scSlice")
   adjSlice = @Adjustment(scSlice)
@@ -101,20 +106,20 @@ function ViewerWindow()
     
       sl = int( getproperty(adjSlice, :value, Float64) )
       println(sl)
-      if sl < 1
-        sl = 1
-      end
-      if sl > NZ
-        sl = NZ
-      end
-             
+      sl = min(max(sl,1),NZ)
       
-      colormap("jet")
-      #if getproperty(btnAbs,:active,Bool)
-      #  p1 = imagesc( abs( data[:,:,sl]' ) )
-      #else  
+      #colormap("jet")
+      colormap(reverse(Color.colormap("grays",256)))
+      activeDomainText = bytestring( G_.active_text(cbDomain))
+      if activeDomainText == "Abs"
+        p1 = imagesc( abs( data[:,:,sl]' ) )
+      elseif activeDomainText == "Real"
+        p1 = imagesc( real( data[:,:,sl]' ) )
+      elseif activeDomainText == "Imag"
+        p1 = imagesc( imag( data[:,:,sl]' ) )
+      else      
         p1 = imagesc( angle( data[:,:,sl]' ) )
-      #end
+      end
       
       display(c1,p1)     
     end
@@ -123,11 +128,14 @@ function ViewerWindow()
   end     
 
   signal_connect(updateImages, adjSlice, "value_changed")
+  signal_connect(cbDomain, "changed") do w, other...
+    updateImages( w )
+  end
   
   win = G_.object(builder, "mainWindow")
   show(win)  
   
-  view = ViewerWindow(win.handle)  
+  view = ImageViewer(win.handle)  
   
   
   signal_connect(win,"destroy") do object, args...
