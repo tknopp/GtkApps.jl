@@ -1,5 +1,5 @@
 module GtkApps
 
-# package code goes here
+include("Viewer.jl")
 
 end # module
