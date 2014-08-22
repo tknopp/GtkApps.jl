@@ -1,5 +1,6 @@
 using Gtk.ShortNames, Gtk.GConstants
 using Winston
+using RawFile
 import Color
 
 export viewer, ImageViewer
@@ -23,7 +24,8 @@ function ImageViewer()
   choices = ["Abs", "Phase", "Real", "Imag"]
   for c in choices
     push!(cbDomain, c)
-  end  
+  end 
+  setproperty!(cbDomain,:active,0)
   
   scSlice = G_.object(builder, "scSlice")
   adjSlice = @Adjustment(scSlice)
@@ -65,14 +67,16 @@ function ImageViewer()
     println(filename)
     if isfile(filename)
 
-      NX = int( getproperty(adjX, :value, Float64) )
-      NY = int( getproperty(adjY, :value, Float64) )
-      NZ = int(filesize(filename) / sizeof(Complex128) / (NY * NX) )
+      f = Rawfile(filename)      
+      data = f[]
+
+      NX = size(data,1)
+      NY = size(data,2)
+      NZ = size(data,3)
     
-      data = open(filename, "r") do fd
-        read(fd, Complex128, (NX, NY, NZ) )
-      end
-      setproperty!(adjSlice,:upper,NZ)
+
+      setproperty!(adjSlice,:upper,size(data,3))
+      updateImages( nothing )
     end   
   end  
   
